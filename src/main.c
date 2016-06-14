@@ -3,6 +3,8 @@
 static Window *s_main_window;
 static TextLayer *s_time_layer;
 static GFont s_time_font;
+static BitmapLayer *s_background_layer;
+static GBitmap *s_background_bitmap;
 
 static void update_time() {
   // Get a tm structure
@@ -27,6 +29,16 @@ static void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
+  // Create GBitmap
+  s_background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND);
+
+  // Create BitmapLayer to display the GBitmap
+  s_background_layer = bitmap_layer_create(bounds);
+
+  // Set the bitmap onto the layer and add to the window 
+  bitmap_layer_set_bitmap(s_background_layer, s_background_bitmap);
+  layer_add_child(window_layer, bitmap_layer_get_layer(s_background_layer));
+
   // Create the TextLayer with specific bounds
   s_time_layer = text_layer_create(
       GRect(0, PBL_IF_ROUND_ELSE(58, 52), bounds.size.w, 50));
@@ -48,6 +60,15 @@ static void main_window_load(Window *window) {
 static void main_window_unload(Window *window) {
   // Destroy TextLayer
   text_layer_destroy(s_time_layer);
+
+  // Unload GFont
+  fonts_unload_custom_font(s_time_font);
+  
+  // Destroy GBitmap
+  gbitmap_destroy(s_background_bitmap);
+
+  // Destroy BitmapLayer
+  bitmap_layer_destroy(s_background_layer);
 }
 
 static void init() {
@@ -59,6 +80,8 @@ static void init() {
     .load = main_window_load,
     .unload = main_window_unload
   });
+
+  window_set_background_color(s_main_window, GColorBlack);
 
   // Show the Window on the watch, with animated=true
   window_stack_push(s_main_window, true);
