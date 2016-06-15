@@ -2,6 +2,7 @@
 
 static Window *s_main_window;
 static TextLayer *s_time_layer;
+static Layer *s_canvas_layer;
 
 static void update_time() {
   // Get a tm structure
@@ -21,11 +22,39 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
 }
 
+
+// Update the background reflecting steps
+static void canvas_update_proc(Layer *layer, GContext *ctx) {
+  // Set the line color
+  graphics_context_set_stroke_color(ctx, GColorRed);
+
+  // Set the fill color
+  graphics_context_set_fill_color(ctx, GColorBlue);
+  
+  // Draw
+  GRect rect_bounds = GRect(10, 10, 40, 60);
+  
+  graphics_fill_rect(ctx, rect_bounds, 0, GCornerNone);
+}
+
 static void main_window_load(Window *window) {
   // Get information about the Window
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
+  // Set up the background layer
+  
+  // Create canvas layer
+  s_canvas_layer = layer_create(bounds); 
+
+  // Assign the custom drawing procedure
+  layer_set_update_proc(s_canvas_layer, canvas_update_proc);
+
+  // Add to Window
+  layer_add_child(window_get_root_layer(window), s_canvas_layer);  
+
+  // Set up the time layer
+  
   // Create the TextLayer with specific bounds
   s_time_layer = text_layer_create(
       GRect(0, PBL_IF_ROUND_ELSE(58, 52), bounds.size.w, 50));
