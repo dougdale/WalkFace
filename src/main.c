@@ -25,15 +25,22 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 
 // Update the background reflecting steps
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
+  GRect layer_bounds = layer_get_bounds(layer);
+  int rw = layer_bounds.size.w / 4;
+  int ch = layer_bounds.size.h / 4;
+  
   for (int hour = 0; hour < 16; hour++) {
     int row = hour / 4;
     int col = hour % 4;
     
     // Set the fill color
-    graphics_context_set_fill_color(ctx, GColorFromRGB(0, (hour * 255) / 16, 0));
+    int green = (hour * 255) / 16;
+    GColor color = GColorFromRGB(0, green, 0);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "%d - %d", green, color.argb);
+    graphics_context_set_fill_color(ctx, color);
   
     // Draw
-    GRect rect_bounds = GRect(row * 10, col * 10, 10, 10);
+    GRect rect_bounds = GRect(row * rw, col * ch, rw, ch);
   
     graphics_fill_rect(ctx, rect_bounds, 0, GCornerNone);
   }
@@ -63,7 +70,7 @@ static void main_window_load(Window *window) {
 
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_time_layer, GColorClear);
-  text_layer_set_text_color(s_time_layer, GColorBlack);
+  text_layer_set_text_color(s_time_layer, GColorWhite);
   text_layer_set_text(s_time_layer, "00:00");
   text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_LIGHT));
   text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
