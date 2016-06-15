@@ -25,16 +25,18 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 
 // Update the background reflecting steps
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
-  // Set the line color
-  graphics_context_set_stroke_color(ctx, GColorRed);
-
-  // Set the fill color
-  graphics_context_set_fill_color(ctx, GColorBlue);
+  for (int hour = 0; hour < 16; hour++) {
+    int row = hour / 4;
+    int col = hour % 4;
+    
+    // Set the fill color
+    graphics_context_set_fill_color(ctx, GColorFromRGB(0, (hour * 255) / 16, 0));
   
-  // Draw
-  GRect rect_bounds = GRect(10, 10, 40, 60);
+    // Draw
+    GRect rect_bounds = GRect(row * 10, col * 10, 10, 10);
   
-  graphics_fill_rect(ctx, rect_bounds, 0, GCornerNone);
+    graphics_fill_rect(ctx, rect_bounds, 0, GCornerNone);
+  }
 }
 
 static void main_window_load(Window *window) {
