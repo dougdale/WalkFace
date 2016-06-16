@@ -4,6 +4,10 @@ static Window *s_main_window;
 static TextLayer *s_time_layer;
 static Layer *s_canvas_layer;
 
+#define COLOR_LIST_SIZE 10
+
+static GColor color_list[COLOR_LIST_SIZE];
+
 static void update_time() {
   // Get a tm structure
   time_t temp = time(NULL); 
@@ -26,21 +30,19 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 // Update the background reflecting steps
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
   GRect layer_bounds = layer_get_bounds(layer);
-  int rw = layer_bounds.size.w / 4;
-  int ch = layer_bounds.size.h / 4;
+  int rh = layer_bounds.size.h / 4;
+  int cw = layer_bounds.size.w / 4;
   
   for (int hour = 0; hour < 16; hour++) {
     int row = hour / 4;
     int col = hour % 4;
     
     // Set the fill color
-    int green = (hour * 255) / 16;
-    GColor color = GColorFromRGB(0, green, 0);
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "%d - %d", green, color.argb);
+    GColor color = color_list[hour % COLOR_LIST_SIZE];
     graphics_context_set_fill_color(ctx, color);
   
     // Draw
-    GRect rect_bounds = GRect(row * rw, col * ch, rw, ch);
+    GRect rect_bounds = GRect(col * cw, row * rh, cw, rh);
   
     graphics_fill_rect(ctx, rect_bounds, 0, GCornerNone);
   }
@@ -86,6 +88,19 @@ static void main_window_unload(Window *window) {
 
 
 static void init() {
+  // Since I can't initialize at the declaration, fill
+  // color_list[] here.
+  color_list[0] = GColorMidnightGreen;
+  color_list[1] = GColorDarkGreen;
+  color_list[2] = GColorIslamicGreen;
+  color_list[3] = GColorJaegerGreen;
+  color_list[4] = GColorKellyGreen;
+  color_list[5] = GColorMayGreen;
+  color_list[6] = GColorGreen;
+  color_list[7] = GColorBrightGreen;
+  color_list[8] = GColorScreaminGreen;
+  color_list[9] = GColorSpringBud;
+  
   // Create main Window element and assign to pointer
   s_main_window = window_create();
 
