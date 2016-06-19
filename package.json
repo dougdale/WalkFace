@@ -5,7 +5,7 @@
     "name": "walkfface",
     "pebble": {
         "capabilities": [
-            ""
+            "health"
         ],
         "displayName": "WalkFace",
         "enableMultiJS": true,
@@ -16,9 +16,7 @@
         },
         "sdkVersion": "3",
         "targetPlatforms": [
-            "aplite",
-            "basalt",
-            "chalk"
+            "basalt"
         ],
         "uuid": "65a34ce3-921e-4c15-8a3d-951c31f736e4",
         "watchapp": {

@@ -4,15 +4,92 @@ static Window *s_main_window;
 static TextLayer *s_time_layer;
 static Layer *s_canvas_layer;
 
-#define COLOR_LIST_SIZE 10
+#define COLOR_LIST_SIZE 5
+#define STEP_HOURS 16
+#define STEP_HOURS_START 6
+#define STEP_HOURS_END (STEP_HOURS_START + STEP_HOURS)
+#define STEP_HISTORY_SIZE 24
+#define STEPS_PER_DAY 10000
 
 static GColor color_list[COLOR_LIST_SIZE];
+static int step_history[STEP_HISTORY_SIZE];
+static bool steps_initialized;
+static time_t start_of_today;
+
+static void zero_steps() {
+  for (int i = 0; i < STEP_HISTORY_SIZE; i++)
+      step_history[i] = 0;
+}  
+
+static int hour_index(time_t hour, time_t start) {
+  int index = (hour - start) / SECONDS_PER_HOUR;
+  
+  if (index < 0) {
+    index = 0;
+  } else if (index >= STEP_HISTORY_SIZE) {
+    index = STEP_HISTORY_SIZE - 1;
+  }
+  
+  return index;
+}
+
+static int get_steps(time_t start, time_t end) {
+  int steps = 0;
+  
+  // Check if data is available
+  HealthServiceAccessibilityMask result = 
+      health_service_metric_accessible(HealthMetricStepCount, start, end);
+  
+  if(result & HealthServiceAccessibilityMaskAvailable) {
+    // Data is available! Read it
+    HealthValue hsteps = health_service_sum(HealthMetricStepCount, start, end);
+    steps = (int)hsteps;
+  } 
+  
+  return steps;
+}
+
+static void update_steps(time_t current_time) {
+  time_t start = time_start_of_today();
+  time_t hour;
+  
+  // If new day detected, zero the steps
+  if (start != start_of_today) {
+    start_of_today = start;
+    zero_steps();
+  }
+  
+  // Steps for previous hours initialized?
+  if (steps_initialized) {
+    // Yes, just update the current hour.
+    
+    
+    hour = current_time - (current_time % SECONDS_PER_HOUR);
+    step_history[hour_index(hour, start_of_today)] = get_steps(hour, current_time);
+  } else {
+    // No, update from start of day.
+    hour = start + STEP_HOURS_START;
+    
+    while (hour < current_time) {
+      time_t end = hour + SECONDS_PER_HOUR;
+      
+      if (end > current_time) { 
+        end = current_time;
+      }
+      
+      step_history[hour_index(hour, start_of_today)] = get_steps(hour, end);
+    }
+  }
+}
 
 static void update_time() {
   // Get a tm structure
-  time_t temp = time(NULL); 
-  struct tm *tick_time = localtime(&temp);
+  time_t current = time(NULL); 
+  struct tm *tick_time = localtime(&current);
 
+  // Update the steps information
+  update_steps(current);
+  
   // Write the current hours and minutes into a buffer
   static char s_buffer[8];
   strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
@@ -33,12 +110,16 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
   int rh = layer_bounds.size.h / 4;
   int cw = layer_bounds.size.w / 4;
   
-  for (int hour = 0; hour < 16; hour++) {
-    int row = hour / 4;
-    int col = hour % 4;
+  for (int hour_index = 0; hour_index < STEP_HOURS; hour_index++) {
+    int row = hour_index / 4;
+    int col = hour_index % 4;
     
     // Set the fill color
-    GColor color = color_list[hour % COLOR_LIST_SIZE];
+    int color_index = (step_history[hour_index + STEP_HOURS_START] * COLOR_LIST_SIZE) / (STEPS_PER_DAY / STEP_HOURS);
+    if (color_index >= COLOR_LIST_SIZE) {
+      color_index = COLOR_LIST_SIZE - 1;
+    }
+    GColor color = color_list[color_index];
     graphics_context_set_fill_color(ctx, color);
   
     // Draw
@@ -88,18 +169,21 @@ static void main_window_unload(Window *window) {
 
 
 static void init() {
-  // Since I can't initialize at the declaration, fill
+  // Since we can't initialize at the declaration, fill
   // color_list[] here.
-  color_list[0] = GColorMidnightGreen;
-  color_list[1] = GColorDarkGreen;
-  color_list[2] = GColorIslamicGreen;
-  color_list[3] = GColorJaegerGreen;
-  color_list[4] = GColorKellyGreen;
-  color_list[5] = GColorMayGreen;
-  color_list[6] = GColorGreen;
-  color_list[7] = GColorBrightGreen;
-  color_list[8] = GColorScreaminGreen;
-  color_list[9] = GColorSpringBud;
+  color_list[0] = GColorBlack;
+  color_list[1] = GColorRed;
+  color_list[2] = GColorChromeYellow;
+  color_list[3] = GColorYellow;
+  color_list[4] = GColorGreen;
+  
+  // Set start_of_today
+  start_of_today = time_start_of_today();
+  
+  // Indicate steps need to be initialized and zero steps
+  steps_initialized = false;
+  
+  zero_steps();
   
   // Create main Window element and assign to pointer
   s_main_window = window_create();
