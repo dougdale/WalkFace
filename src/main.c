@@ -17,11 +17,13 @@ static bool steps_initialized;
 static time_t start_of_today;
 
 static void zero_steps() {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In zero_steps()");
   for (int i = 0; i < STEP_HISTORY_SIZE; i++)
       step_history[i] = 0;
 }  
 
 static int hour_index(time_t hour, time_t start) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In hour_index()");
   int index = (hour - start) / SECONDS_PER_HOUR;
   
   if (index < 0) {
@@ -34,6 +36,7 @@ static int hour_index(time_t hour, time_t start) {
 }
 
 static int get_steps(time_t start, time_t end) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In get_steps()");
   int steps = 0;
   
   // Check if data is available
@@ -50,7 +53,8 @@ static int get_steps(time_t start, time_t end) {
 }
 
 static void update_steps(time_t current_time) {
-  time_t start = time_start_of_today();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In update_steps()");
+  time_t start = start_of_today;
   time_t hour;
   
   // If new day detected, zero the steps
@@ -78,11 +82,16 @@ static void update_steps(time_t current_time) {
       }
       
       step_history[hour_index(hour, start_of_today)] = get_steps(hour, end);
+      
+      hour = end;
     }
+    
+    steps_initialized = true;
   }
 }
 
 static void update_time() {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In update_time()");
   // Get a tm structure
   time_t current = time(NULL); 
   struct tm *tick_time = localtime(&current);
@@ -106,6 +115,7 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 
 // Update the background reflecting steps
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In canvas_update_proc()");
   GRect layer_bounds = layer_get_bounds(layer);
   int rh = layer_bounds.size.h / 4;
   int cw = layer_bounds.size.w / 4;
@@ -130,6 +140,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 }
 
 static void main_window_load(Window *window) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In main_window_load()");
   // Get information about the Window
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
