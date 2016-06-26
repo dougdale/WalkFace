@@ -9,7 +9,8 @@ static Layer *s_canvas_layer;
 #define STEP_HOURS_START 6
 #define STEP_HOURS_END (STEP_HOURS_START + STEP_HOURS)
 #define STEP_HISTORY_SIZE 24
-#define STEPS_PER_DAY 10000
+#define STEP_GOAL_DAYLY 10000
+#define STEP_GOAL_HOURLY 250
 
 static GColor color_list[COLOR_LIST_SIZE];
 static int step_history[STEP_HISTORY_SIZE];
@@ -31,7 +32,9 @@ static int hour_index(time_t hour, time_t start) {
   } else if (index >= STEP_HISTORY_SIZE) {
     index = STEP_HISTORY_SIZE - 1;
   }
-  
+
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "index: %d", index);
+
   return index;
 }
 
@@ -49,6 +52,8 @@ static int get_steps(time_t start, time_t end) {
     steps = (int)hsteps;
   } 
   
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "steps: %d", steps);
+
   return steps;
 }
 
@@ -72,11 +77,13 @@ static void update_steps(time_t current_time) {
     step_history[hour_index(hour, start_of_today)] = get_steps(hour, current_time);
   } else {
     // No, update from start of day.
-    hour = start + STEP_HOURS_START;
+    hour = start + (STEP_HOURS_START * SECONDS_PER_HOUR);
     
     while (hour < current_time) {
       time_t end = hour + SECONDS_PER_HOUR;
-      
+
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "hour: %ld", hour);
+
       if (end > current_time) { 
         end = current_time;
       }
@@ -125,7 +132,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     int col = hour_index % 4;
     
     // Set the fill color
-    int color_index = (step_history[hour_index + STEP_HOURS_START] * COLOR_LIST_SIZE) / (STEPS_PER_DAY / STEP_HOURS);
+    int color_index = (step_history[hour_index + STEP_HOURS_START] * COLOR_LIST_SIZE) / STEP_GOAL_HOURLY;
     if (color_index >= COLOR_LIST_SIZE) {
       color_index = COLOR_LIST_SIZE - 1;
     }
