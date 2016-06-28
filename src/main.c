@@ -16,17 +16,18 @@ static GColor color_list[COLOR_LIST_SIZE];
 static int step_history[STEP_HISTORY_SIZE];
 static bool steps_initialized;
 static time_t start_of_today;
+static HealthMinuteData minute_data[MINUTES_PER_HOUR];
 
 static void zero_steps() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In zero_steps()");
   for (int i = 0; i < STEP_HISTORY_SIZE; i++)
       step_history[i] = 0;
-}  
+}
 
 static int hour_index(time_t hour, time_t start) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In hour_index()");
   int index = (hour - start) / SECONDS_PER_HOUR;
-  
+
   if (index < 0) {
     index = 0;
   } else if (index >= STEP_HISTORY_SIZE) {
@@ -41,17 +42,25 @@ static int hour_index(time_t hour, time_t start) {
 static int get_steps(time_t start, time_t end) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In get_steps()");
   int steps = 0;
-  
+
   // Check if data is available
-  HealthServiceAccessibilityMask result = 
+  HealthServiceAccessibilityMask result =
       health_service_metric_accessible(HealthMetricStepCount, start, end);
-  
+
   if(result & HealthServiceAccessibilityMaskAvailable) {
-    // Data is available! Read it
-    HealthValue hsteps = health_service_sum(HealthMetricStepCount, start, end);
-    steps = (int)hsteps;
-  } 
-  
+    // Have to get minute by minute data since
+    // health_service_sum() just returns a weighted average
+    uint32_t num_records = health_service_get_minute_history(
+      &minute_data[0], MINUTES_PER_HOUR, &start, &end);
+
+    // Sum minute by minute data. It's possible not all records are valid
+    for (uint32_t i = 0; i < num_records; i++) {
+      if (!minute_data[i].is_invalid) {
+        steps += minute_data[i].steps;
+      }
+    }
+  }
+
   APP_LOG(APP_LOG_LEVEL_DEBUG, "steps: %d", steps);
 
   return steps;
@@ -61,38 +70,38 @@ static void update_steps(time_t current_time) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In update_steps()");
   time_t start = start_of_today;
   time_t hour;
-  
+
   // If new day detected, zero the steps
   if (start != start_of_today) {
     start_of_today = start;
     zero_steps();
   }
-  
+
   // Steps for previous hours initialized?
   if (steps_initialized) {
     // Yes, just update the current hour.
-    
-    
+
+
     hour = current_time - (current_time % SECONDS_PER_HOUR);
     step_history[hour_index(hour, start_of_today)] = get_steps(hour, current_time);
   } else {
     // No, update from start of day.
     hour = start + (STEP_HOURS_START * SECONDS_PER_HOUR);
-    
+
     while (hour < current_time) {
       time_t end = hour + SECONDS_PER_HOUR;
 
       APP_LOG(APP_LOG_LEVEL_DEBUG, "hour: %ld", hour);
 
-      if (end > current_time) { 
+      if (end > current_time) {
         end = current_time;
       }
-      
+
       step_history[hour_index(hour, start_of_today)] = get_steps(hour, end);
-      
+
       hour = end;
     }
-    
+
     steps_initialized = true;
   }
 }
@@ -100,12 +109,12 @@ static void update_steps(time_t current_time) {
 static void update_time() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In update_time()");
   // Get a tm structure
-  time_t current = time(NULL); 
+  time_t current = time(NULL);
   struct tm *tick_time = localtime(&current);
 
   // Update the steps information
   update_steps(current);
-  
+
   // Write the current hours and minutes into a buffer
   static char s_buffer[8];
   strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
@@ -126,11 +135,11 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
   GRect layer_bounds = layer_get_bounds(layer);
   int rh = layer_bounds.size.h / 4;
   int cw = layer_bounds.size.w / 4;
-  
+
   for (int hour_index = 0; hour_index < STEP_HOURS; hour_index++) {
     int row = hour_index / 4;
     int col = hour_index % 4;
-    
+
     // Set the fill color
     int color_index = (step_history[hour_index + STEP_HOURS_START] * COLOR_LIST_SIZE) / STEP_GOAL_HOURLY;
     if (color_index >= COLOR_LIST_SIZE) {
@@ -138,10 +147,10 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     }
     GColor color = color_list[color_index];
     graphics_context_set_fill_color(ctx, color);
-  
+
     // Draw
     GRect rect_bounds = GRect(col * cw, row * rh, cw, rh);
-  
+
     graphics_fill_rect(ctx, rect_bounds, 0, GCornerNone);
   }
 }
@@ -153,18 +162,18 @@ static void main_window_load(Window *window) {
   GRect bounds = layer_get_bounds(window_layer);
 
   // Set up the background layer
-  
+
   // Create canvas layer
-  s_canvas_layer = layer_create(bounds); 
+  s_canvas_layer = layer_create(bounds);
 
   // Assign the custom drawing procedure
   layer_set_update_proc(s_canvas_layer, canvas_update_proc);
 
   // Add to Window
-  layer_add_child(window_get_root_layer(window), s_canvas_layer);  
+  layer_add_child(window_get_root_layer(window), s_canvas_layer);
 
   // Set up the time layer
-  
+
   // Create the TextLayer with specific bounds
   s_time_layer = text_layer_create(
       GRect(0, PBL_IF_ROUND_ELSE(58, 52), bounds.size.w, 50));
@@ -194,15 +203,15 @@ static void init() {
   color_list[2] = GColorChromeYellow;
   color_list[3] = GColorYellow;
   color_list[4] = GColorGreen;
-  
+
   // Set start_of_today
   start_of_today = time_start_of_today();
-  
+
   // Indicate steps need to be initialized and zero steps
   steps_initialized = false;
-  
+
   zero_steps();
-  
+
   // Create main Window element and assign to pointer
   s_main_window = window_create();
 
