@@ -43,15 +43,24 @@ static int get_steps(time_t start, time_t end) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In get_steps()");
   int steps = 0;
 
+  time_t run_seconds;
+  uint16_t run_ms;
+
   // Check if data is available
   HealthServiceAccessibilityMask result =
       health_service_metric_accessible(HealthMetricStepCount, start, end);
 
   if(result & HealthServiceAccessibilityMaskAvailable) {
+    time_ms(&run_seconds, &run_ms);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "start: %ld %d", run_seconds, run_ms);
+
     // Have to get minute by minute data since
     // health_service_sum() just returns a weighted average
     uint32_t num_records = health_service_get_minute_history(
       &minute_data[0], MINUTES_PER_HOUR, &start, &end);
+
+    time_ms(&run_seconds, &run_ms);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "end: %ld %d", run_seconds, run_ms);
 
     // Sum minute by minute data. It's possible not all records are valid
     for (uint32_t i = 0; i < num_records; i++) {
