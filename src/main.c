@@ -203,7 +203,7 @@ static void init_hour(void *data)
   layer_mark_dirty(s_canvas_layer);
 
   if (!steps_initialized) {
-    app_timer_register(1000, init_hour, NULL);
+    app_timer_register(100, init_hour, NULL);
   }
 }
 
