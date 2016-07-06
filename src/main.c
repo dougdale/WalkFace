@@ -17,6 +17,7 @@ static int step_history[STEP_HISTORY_SIZE];
 static bool steps_initialized;
 static time_t start_of_today;
 static HealthMinuteData minute_data[MINUTES_PER_HOUR];
+static int init_hour_index;
 
 static void zero_steps() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In zero_steps()");
@@ -89,29 +90,12 @@ static void update_steps(time_t current_time) {
   // Steps for previous hours initialized?
   if (steps_initialized) {
     // Yes, just update the current hour.
-
-
     hour = current_time - (current_time % SECONDS_PER_HOUR);
-    step_history[hour_index(hour, start_of_today)] = get_steps(hour, current_time);
-  } else {
-    // No, update from start of day.
-    hour = start + (STEP_HOURS_START * SECONDS_PER_HOUR);
 
-    while (hour < current_time) {
-      time_t end = hour + SECONDS_PER_HOUR;
-
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "hour: %ld", hour);
-
-      if (end > current_time) {
-        end = current_time;
-      }
-
-      step_history[hour_index(hour, start_of_today)] = get_steps(hour, end);
-
-      hour = end;
+    int this_hour = hour_index(hour, start_of_today);
+    if (this_hour >= STEP_HOURS_START && this_hour < STEP_HOURS_END) {
+      step_history[this_hour] = get_steps(hour, current_time);
     }
-
-    steps_initialized = true;
   }
 }
 
@@ -203,6 +187,25 @@ static void main_window_unload(Window *window) {
   text_layer_destroy(s_time_layer);
 }
 
+static void init_hour(void *data)
+{
+  time_t hour = start_of_today + (init_hour_index * SECONDS_PER_HOUR);
+  time_t end = hour + SECONDS_PER_HOUR;
+  time_t current = time(NULL);
+
+  if (end > current) {
+    end = current;
+    steps_initialized = true;
+  }
+
+  step_history[init_hour_index++] = get_steps(hour, end);
+
+  layer_mark_dirty(s_canvas_layer);
+
+  if (!steps_initialized) {
+    app_timer_register(100, init_hour, NULL);
+  }
+}
 
 static void init() {
   // Since we can't initialize at the declaration, fill
@@ -217,9 +220,15 @@ static void init() {
   start_of_today = time_start_of_today();
 
   // Indicate steps need to be initialized and zero steps
-  steps_initialized = false;
-
   zero_steps();
+
+  if (time(NULL) > start_of_today + (STEP_HOURS_START * SECONDS_PER_HOUR)) {
+      init_hour_index = STEP_HOURS_START;
+      steps_initialized = false;
+      app_timer_register(500, init_hour, NULL);
+  } else {
+      steps_initialized = true;
+  }
 
   // Create main Window element and assign to pointer
   s_main_window = window_create();
