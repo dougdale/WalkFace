@@ -8,6 +8,5 @@ A basic display of time and date, plusa  color representation of the steps taken
   * 100-149 = Orange
   * 150-199 = Yellow
   * 200+ = Green
-  * 
 
 Initial code based on the [Pebble C watchface tutorial](https://developer.pebble.com/tutorials/watchface-tutorial/part1).
