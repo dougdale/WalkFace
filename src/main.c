@@ -1,4 +1,5 @@
 #include <pebble.h>
+#define EMULATOR
 
 static Window *s_main_window;
 static TextLayer *s_time_layer;
@@ -94,7 +95,12 @@ static void update_steps(time_t current_time) {
 
     int this_hour = hour_index(hour, start_of_today);
     if (this_hour >= STEP_HOURS_START && this_hour < STEP_HOURS_END) {
+#ifndef EMULATOR
       step_history[this_hour] = get_steps(hour, current_time);
+#else
+      // Steps not returned in emulator. Just add to current steps.
+      step_history[this_hour] += 5;
+#endif
     }
   }
 }
@@ -198,7 +204,13 @@ static void init_hour(void *data)
     steps_initialized = true;
   }
 
+#ifndef EMULATOR
   step_history[init_hour_index++] = get_steps(hour, end);
+#else
+  // Health services don't return steps in emulator. Just put random
+  // data in.
+  step_history[init_hour_index++] = rand() % 300;
+#endif
 
   layer_mark_dirty(s_canvas_layer);
 
