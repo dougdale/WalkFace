@@ -1,8 +1,9 @@
 #include <pebble.h>
-#define EMULATOR
+//#define EMULATOR
 
 static Window *s_main_window;
 static TextLayer *s_time_layer;
+static TextLayer *s_date_layer;
 static Layer *s_canvas_layer;
 
 #define COLOR_LIST_SIZE 5
@@ -114,13 +115,16 @@ static void update_time() {
   // Update the steps information
   update_steps(current);
 
-  // Write the current hours and minutes into a buffer
-  static char s_buffer[8];
-  strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
-                                          "%H:%M" : "%I:%M", tick_time);
+  // Format the time and display
+  static char s_time_buffer[8];
+  strftime(s_time_buffer, sizeof(s_time_buffer),
+           clock_is_24h_style() ? "%H:%M" : "%I:%M", tick_time);
+  text_layer_set_text(s_time_layer, s_time_buffer);
 
-  // Display this time on the TextLayer
-  text_layer_set_text(s_time_layer, s_buffer);
+  // Now format the date and display
+  static char s_date_buffer[10];
+  strftime(s_date_buffer, sizeof(s_date_buffer), "%a %m/%d", tick_time);
+  text_layer_set_text(s_date_layer, s_date_buffer);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
@@ -132,12 +136,12 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In canvas_update_proc()");
   GRect layer_bounds = layer_get_bounds(layer);
-  int rh = layer_bounds.size.h / 4;
-  int cw = layer_bounds.size.w / 4;
+  int rh = layer_bounds.size.h / 8;
+  int cw = rh;
 
   for (int hour_index = 0; hour_index < STEP_HOURS; hour_index++) {
-    int row = hour_index / 4;
-    int col = hour_index % 4;
+    int row = hour_index % 8;
+    int col = hour_index / 8;
 
     // Set the fill color
     int color_index = (step_history[hour_index + STEP_HOURS_START] * COLOR_LIST_SIZE) / STEP_GOAL_HOURLY;
@@ -161,6 +165,7 @@ static void main_window_load(Window *window) {
   GRect bounds = layer_get_bounds(window_layer);
 
   // Set up the background layer
+  window_set_background_color(window, GColorBlack);
 
   // Create canvas layer
   s_canvas_layer = layer_create(bounds);
@@ -175,22 +180,37 @@ static void main_window_load(Window *window) {
 
   // Create the TextLayer with specific bounds
   s_time_layer = text_layer_create(
-      GRect(0, PBL_IF_ROUND_ELSE(58, 52), bounds.size.w, 50));
+      GRect(0, 0, bounds.size.w, 50));
 
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_time_layer, GColorClear);
   text_layer_set_text_color(s_time_layer, GColorWhite);
-  text_layer_set_text(s_time_layer, "00:00");
   text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_LIGHT));
-  text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
+  text_layer_set_text_alignment(s_time_layer, GTextAlignmentRight);
 
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
+
+  // Set up the date layer
+
+  // Create the TextLayer with specific bounds
+  s_date_layer = text_layer_create(
+      GRect(0, 50, bounds.size.w, 50));
+
+  // Improve the layout to be more like a watchface
+  text_layer_set_background_color(s_date_layer, GColorClear);
+  text_layer_set_text_color(s_date_layer, GColorWhite);
+  text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+  text_layer_set_text_alignment(s_date_layer, GTextAlignmentRight);
+
+  // Add it as a child layer to the Window's root layer
+  layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 }
 
 static void main_window_unload(Window *window) {
   // Destroy TextLayer
   text_layer_destroy(s_time_layer);
+  text_layer_destroy(s_date_layer);
 }
 
 static void init_hour(void *data)
