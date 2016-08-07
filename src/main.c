@@ -144,10 +144,14 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     int col = hour_index / 8;
 
     // Set the fill color
-    int color_index = (step_history[hour_index + STEP_HOURS_START] * COLOR_LIST_SIZE) / STEP_GOAL_HOURLY;
+    int color_index =
+      (step_history[hour_index + STEP_HOURS_START] * (COLOR_LIST_SIZE - 1))
+      / STEP_GOAL_HOURLY;
+
     if (color_index >= COLOR_LIST_SIZE) {
       color_index = COLOR_LIST_SIZE - 1;
     }
+
     GColor color = color_list[color_index];
     graphics_context_set_fill_color(ctx, color);
 
