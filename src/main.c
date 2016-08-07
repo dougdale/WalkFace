@@ -80,7 +80,7 @@ static int get_steps(time_t start, time_t end) {
 
 static void update_steps(time_t current_time) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In update_steps()");
-  time_t start = start_of_today;
+  time_t start = time_start_of_today();
   time_t hour;
 
   // If new day detected, zero the steps
